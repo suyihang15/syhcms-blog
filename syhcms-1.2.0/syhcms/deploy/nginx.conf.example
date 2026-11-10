@@ -1,0 +1,53 @@
+# Nginx 站点配置示例
+# 将 example.com 与路径替换为你的实际域名和目录；
+# fastcgi_pass 的 socket 路径按服务器上实际 PHP 版本修改
+# （宝塔面板常见为 unix:/tmp/php-cgi-85.sock，PHP 8.2 则是 php-cgi-82.sock）。
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name example.com www.example.com;
+
+    # 站点根目录必须指向 public，不是项目根目录
+    root /www/wwwroot/example.com/public;
+    index index.php index.html;
+
+    access_log /www/wwwlogs/example.com.log;
+    error_log  /www/wwwlogs/example.com.error.log;
+
+    charset utf-8;
+    client_max_body_size 20m;
+
+    # 伪静态：不存在的路径统一交给入口文件
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        include fastcgi_params;
+        fastcgi_pass unix:/tmp/php-cgi-85.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_read_timeout 120;
+    }
+
+    # 上传目录：只允许静态访问，禁止执行任何脚本
+    location ^~ /wp-content/uploads/ {
+        location ~ \.php$ {
+            deny all;
+        }
+    }
+
+    # 静态资源缓存
+    location ~* \.(css|js|jpg|jpeg|png|gif|webp|svg|ico|woff2?|ttf)$ {
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000";
+        access_log off;
+    }
+
+    # 禁止访问隐藏文件
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+}
