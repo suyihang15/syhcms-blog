@@ -1,0 +1,18 @@
+# syhcms Apache 配置
+# 需在站点配置中开启 AllowOverride All 并启用 mod_rewrite。
+# 若你的环境禁用了 .htaccess，把下面 rewrite 规则写进虚拟主机即可。
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 上传目录禁止执行任何脚本
+    RewriteRule ^wp-content/uploads/.*\.php$ - [F,L]
+
+    # 已存在的文件 / 目录直接返回
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # 其余请求交给入口文件
+    RewriteRule ^ index.php [L]
+</IfModule>

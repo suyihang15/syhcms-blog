@@ -1,0 +1,22 @@
+# 运行时数据（安装 / 运行后自动生成，勿提交）
+data/
+
+# 用户上传的媒体文件（保留占位用的 index.html）
+public/wp-content/uploads/*
+!public/wp-content/uploads/index.html
+
+# SQLite 数据库文件
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# 日志
+*.log
+
+# 编辑器与系统文件
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

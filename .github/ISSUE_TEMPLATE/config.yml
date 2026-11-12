@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 使用问题 / 交流
+    url: https://suyihang15.com/
+    about: 使用上的问题可以先看看作者博客，或在 issue 里描述具体场景。
