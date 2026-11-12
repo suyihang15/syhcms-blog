@@ -257,9 +257,11 @@ syhcms/
 ## 效果展示
 本人博客网站（前端）   
 https://suyihang15.com/   
-<img width="2075" height="1403" alt="截图 2026-11-08 14-32-55" src="https://github.com/user-attachments/assets/80216bf0-d0ac-4554-aa5c-0dd7b256d235" />        
+<img width="2075" height="1403" alt="截图 2026-11-08 14-32-55" src="https://github.com/user-attachments/assets/20887b28-59df-495f-8eb1-c9a6999d7e85" />
+    
 后台（后端）       
-<img width="2083" height="1380" alt="截图 2026-11-08 14-06-49" src="https://github.com/user-attachments/assets/3bc56d79-e2ca-47d8-b3e6-bf43452e88c3" />
+<img width="2083" height="1380" alt="截图 2026-11-08 14-06-49" src="https://github.com/user-attachments/assets/c869f09a-08fc-4b3c-9df5-737824518dc4" />
+
 
 
 ## 许可
