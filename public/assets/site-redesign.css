@@ -214,10 +214,10 @@ html.dark-mode .site-content {
     display: block;
 }
 
-/* 长文（单篇 / 内容页）收窄一点，保持行宽舒适 */
+/* 单篇 / 页面：与首页列表同宽，视觉保持一致 */
 body.single .content-with-sidebar,
 body.page .content-with-sidebar {
-    max-width: 860px;
+    max-width: min(1280px, calc(100% - 160px));
 }
 
 /* 归档 / 统计 / 友链 这类版式页仍用宽列，与列表一致 */
@@ -1597,6 +1597,25 @@ body.reading-mode .site-main {
     .footer-inner {
         padding: 0 1.1rem;
     }
+
+    /* 页脚：打赏 + 友链 收紧间距，二维码适当缩小，避免挤作一团 */
+    .footer-actions-grid {
+        gap: 1.5rem;
+    }
+
+    .donate-methods {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        justify-content: center;
+    }
+
+    .donation-qr {
+        width: 140px;
+    }
+
+    .footer-links-mini-grid {
+        grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+        gap: 0.6rem;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1606,6 +1625,20 @@ body.reading-mode .site-main {
 
     .post-list article.post .entry-title {
         font-size: 1.3rem;
+    }
+
+    /* 窄屏：友链格更紧凑，打赏二维码再小一点 */
+    .footer-links-mini-grid {
+        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+        gap: 0.5rem;
+    }
+
+    .donate-methods {
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    }
+
+    .donation-qr {
+        width: 130px;
     }
 }
 
