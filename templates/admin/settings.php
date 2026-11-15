@@ -46,7 +46,7 @@ $notifyTo = $value('notify_email') !== '' ? $value('notify_email') : Mailer::rec
             <div class="admin-form">
                 <div class="admin-form-grid-2">
                     <?php $text('site_name', '站点名称'); ?>
-                    <?php $text('site_url', '站点地址', '完整 http(s) URL，不要以 / 结尾。', 'url', 'https://example.com'); ?>
+                    <?php $text('site_url', '站点地址', '完整 http(s) URL，不要以 / 结尾。', 'url', 'https://suyihang15.com'); ?>
                 </div>
                 <?php $textarea('site_description', '站点描述', '用于首页与搜索引擎摘要。', 78); ?>
                 <div class="admin-form-grid-2">
@@ -79,6 +79,80 @@ $notifyTo = $value('notify_email') !== '' ? $value('notify_email') : Mailer::rec
             </div>
         </div>
 
+        <div class="admin-panel" id="live2d">
+            <div class="admin-panel-head"><div><h2>看板娘</h2><p>前台右下角的 Live2D 形象：选模型、调尺寸、设置她说什么。</p></div></div>
+            <div class="admin-form">
+                <?php
+                $live2dModels    = live2d_models();
+                $live2dSelected  = (string) setting('live2d_model', '');
+                $live2dPreview   = live2d_model_preview();
+                $live2dLabel     = live2d_active_label();
+                $live2dRef       = live2d_model_path();
+                $live2dGreeting  = (string) setting('live2d_greeting', '');
+                $live2dLines     = (string) setting('live2d_lines', '');
+                $live2dLimit     = php_upload_limit();
+                ?>
+                <div class="mascot-admin">
+                    <div class="mascot-admin-preview">
+                        <?php if ($live2dPreview !== ''): ?>
+                        <img src="<?= e($live2dPreview) ?>" alt="当前看板娘预览" loading="lazy" decoding="async">
+                        <?php else: ?>
+                        <span class="mascot-admin-empty">暂无预览</span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="mascot-admin-meta">
+                        <p class="mascot-admin-name">当前模型：<strong><?= e($live2dLabel !== '' ? $live2dLabel : '未安装') ?></strong></p>
+                        <p class="admin-muted admin-small">引用文件：<code><?= e($live2dRef !== '' ? $live2dRef : '无') ?></code></p>
+                        <p class="admin-muted admin-small">预览图是模型自带的方形图标，只作占位；前台加载完成后显示的是完整 Live2D 形象。</p>
+                        <p class="admin-muted admin-small">授权：仅限本站展示，不随站点打包分发；公开页面需保留页脚署名（已自动输出）。</p>
+                    </div>
+                </div>
+                <label class="admin-check">
+                    <input type="checkbox" name="live2d_enabled" value="1"<?= setting_bool('live2d_enabled', true) ? ' checked' : '' ?>>
+                    <span>启用看板娘（关闭后前台不输出容器、不请求模型资源）</span>
+                </label>
+                <div class="admin-form-row">
+                    <label for="live2d_model">使用模型</label>
+                    <select class="admin-select" id="live2d_model" name="live2d_model">
+                        <option value=""<?= $live2dSelected === '' || !isset($live2dModels[$live2dSelected]) ? ' selected' : '' ?>>自动（第一个可用模型）</option>
+                        <?php foreach ($live2dModels as $live2dRel => $live2dName): ?>
+                        <option value="<?= e($live2dRel) ?>"<?= $live2dSelected === $live2dRel ? ' selected' : '' ?>><?= e($live2dName) ?><?= str_contains($live2dRel, '/') ? ' · ' . e($live2dRel) : '' ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <span class="hint">上传与删除在页尾「看板娘模型管理」，单个 zip 上限 <?= e(human_bytes($live2dLimit)) ?>。</span>
+                </div>
+                <div class="admin-form-grid-2">
+                    <div class="admin-form-row">
+                        <label>显示尺寸</label>
+                        <p class="admin-muted admin-small" style="margin:0;line-height:1.7;">固定为「中」且不可切换：桌面端约 180px 宽（窄屏约 156px），手机端再缩一档。大档会压住正文和侧栏，已下线。</p>
+                    </div>
+                    <div class="admin-form-row">
+                        <label>显示与交互</label>
+                        <label class="admin-check">
+                            <input type="checkbox" name="live2d_mobile" value="1"<?= setting_bool('live2d_mobile', true) ? ' checked' : '' ?>>
+                            <span>手机端也显示看板娘</span>
+                        </label>
+                        <label class="admin-check">
+                            <input type="checkbox" name="live2d_bubble" value="1"<?= setting_bool('live2d_bubble', true) ? ' checked' : '' ?>>
+                            <span>显示台词气泡</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="admin-form-row">
+                    <label for="live2d_greeting">开场白</label>
+                    <input class="admin-input" type="text" id="live2d_greeting" name="live2d_greeting" maxlength="40"
+                           value="<?= e($live2dGreeting) ?>" placeholder="<?= e(live2d_default_greeting()) ?>">
+                    <span class="hint">首次加载完成后在气泡里说一句，留空使用默认：<?= e(live2d_default_greeting()) ?></span>
+                </div>
+                <div class="admin-form-row">
+                    <label for="live2d_lines">点击台词</label>
+                    <textarea class="admin-input" id="live2d_lines" name="live2d_lines" rows="5"
+                              placeholder="<?= e(implode("\n", live2d_default_lines())) ?>"><?= e($live2dLines) ?></textarea>
+                    <span class="hint">一行一句，最多 8 句、每句 40 字；点击形象时依次轮播（碰到头部会先说“摸头好舒服～”）。留空使用默认台词。</span>
+                </div>
+            </div>
+        </div>
+
         <div class="admin-panel">
             <div class="admin-panel-head"><div><h2>个人资料</h2><p>关于页与首页署名信息。</p></div></div>
             <div class="admin-form">
@@ -87,10 +161,6 @@ $notifyTo = $value('notify_email') !== '' ? $value('notify_email') : Mailer::rec
                     <?php $text('profile_tagline', '一句话签名'); ?>
                 </div>
                 <?php $textarea('profile_intro', '个人简介', '留空时使用站点描述。', 86); ?>
-                <div class="admin-form-grid-2">
-                    <?php $text('author_name', '页脚署名', '留空时页脚只显示“本站由作者本人搭建”。'); ?>
-                    <?php $text('author_url', '署名链接', '可填个人主页或 GitHub，留空则不带链接。', 'url', 'https://example.com'); ?>
-                </div>
                 <div class="admin-form-grid-2">
                     <?php $text('profile_location', '所在地', '', 'text', '贵州'); ?>
                     <?php $text('profile_experience', '经验 / 身份', '', 'text', '技术爱好者'); ?>
@@ -249,6 +319,62 @@ $notifyTo = $value('notify_email') !== '' ? $value('notify_email') : Mailer::rec
         <span class="admin-small admin-muted">修改站点地址后请确认域名与证书配置。</span>
     </div>
 </form>
+
+<div class="admin-panel" id="live2d-manage" style="margin-top:18px;">
+    <div class="admin-panel-head">
+        <div><h2>看板娘模型管理</h2><p>上传 Cubism 3/4 模型压缩包，或删除不再使用的模型目录。</p></div>
+    </div>
+    <form class="admin-form" action="<?= e(admin_url('settings/live2d-upload/')) ?>" method="post" enctype="multipart/form-data">
+        <?= Auth::csrfField() ?>
+        <div class="admin-form-grid-2">
+            <div class="admin-form-row">
+                <label for="live2d-model-zip">模型压缩包（zip）</label>
+                <input class="admin-input" type="file" id="live2d-model-zip" name="model" accept=".zip,application/zip" required>
+                <span class="hint">把含 .model3.json、.moc3、贴图和动作的模型文件夹整体压缩上传；当前服务器单个 zip 上限 <?= e(human_bytes(php_upload_limit())) ?>（PHP upload_max_filesize / post_max_size），解压后不超过 120MB。</span>
+            </div>
+            <div class="admin-form-row">
+                <label for="live2d-model-dir">存放目录名</label>
+                <input class="admin-input" type="text" id="live2d-model-dir" name="dir" placeholder="留空则使用压缩包文件名">
+                <span class="hint">仅字母、数字、点、下划线、短横线；重名会自动加后缀。</span>
+            </div>
+        </div>
+        <div><button class="admin-btn admin-btn-primary" type="submit">上传并启用</button></div>
+    </form>
+
+    <?php $live2dInstalled = live2d_models(); $live2dActive = (string) setting('live2d_model', ''); $live2dInUse = $live2dActive !== '' ? $live2dActive : live2d_active_model(); ?>
+    <div class="admin-table-wrap" style="margin-top:16px;">
+        <?php if ($live2dInstalled): ?>
+        <table class="admin-table">
+            <thead><tr><th>模型</th><th>模型文件</th><th>操作</th></tr></thead>
+            <tbody>
+            <?php foreach ($live2dInstalled as $live2dRel => $live2dName): ?>
+            <?php $live2dFolder = explode('/', $live2dRel)[0]; $live2dUsed = $live2dInUse !== '' && str_starts_with($live2dInUse, $live2dFolder . '/'); $live2dDeletable = str_contains($live2dRel, '/') && !$live2dUsed && is_dir(live2d_model_dir() . '/' . $live2dFolder); ?>
+            <tr>
+                <td><?= e($live2dName) ?><?= $live2dInUse === $live2dRel ? ' <span class="admin-badge">当前</span>' : '' ?><?= $live2dUsed && $live2dInUse !== $live2dRel ? ' <span class="admin-badge">使用中</span>' : '' ?></td>
+                <td class="admin-mono admin-small"><?= e($live2dRel) ?></td>
+                <td class="admin-cell-actions">
+                    <?php if ($live2dDeletable): ?>
+                    <form action="<?= e(admin_url('settings/live2d-delete/')) ?>" method="post" data-confirm="确定删除模型目录“<?= e($live2dFolder) ?>”吗？删除后需要重新上传才能恢复。">
+                        <?= Auth::csrfField() ?>
+                        <input type="hidden" name="model" value="<?= e($live2dFolder) ?>">
+                        <button class="admin-btn admin-btn-sm admin-btn-danger" type="submit">删除</button>
+                    </form>
+                    <?php elseif ($live2dUsed): ?>
+                    <span class="admin-muted admin-small">使用中，先切换再删除</span>
+                    <?php else: ?>
+                    <span class="admin-muted admin-small">随包模型</span>
+                    <?php endif; ?>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php else: ?>
+        <div class="admin-empty">还没有发现模型，请上传 zip 压缩包。</div>
+        <?php endif; ?>
+    </div>
+    <div class="admin-note">仅识别 Cubism 3/4 的 .model3.json 套装；Cubism 2 的 .model.json 不会被识别。请确认模型授权允许在你的站点使用。</div>
+</div>
 
 <div class="admin-panel" style="margin-top:18px;" id="mail-test-panel">
     <div class="admin-panel-head">

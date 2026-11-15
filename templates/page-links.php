@@ -12,6 +12,25 @@ foreach ($link_groups as $items) {
 }
 // 只读取缓存里已有的结果，过期由后台刷新，不阻塞页面
 $friendFeeds = $feedUrls !== [] ? friend_feed_map(array_keys($feedUrls)) : [];
+
+// 友链按各自最新文章的发布时间倒序排列，最新的在最前面；
+// 没有 RSS 或暂时取不到数据时，保持后台设定的 sort 顺序排在后面
+foreach ($link_groups as $groupName => $items) {
+    usort($items, static function (array $a, array $b) use ($friendFeeds): int {
+        $ta = (int) ($friendFeeds[trim((string) ($a['rss'] ?? ''))]['timestamp'] ?? 0);
+        $tb = (int) ($friendFeeds[trim((string) ($b['rss'] ?? ''))]['timestamp'] ?? 0);
+        if ($ta !== $tb) {
+            return $tb <=> $ta;
+        }
+        $sa = (int) ($a['sort'] ?? 0);
+        $sb = (int) ($b['sort'] ?? 0);
+        if ($sa !== $sb) {
+            return $sa <=> $sb;
+        }
+        return (int) $a['id'] <=> (int) $b['id'];
+    });
+    $link_groups[$groupName] = $items;
+}
 require SYH_ROOT . '/templates/header.php';
 $siteInfo = [
     'name' => site_name(),

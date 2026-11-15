@@ -47,7 +47,7 @@
             var nameEl = byId('ap-name');
             var markEl = byId('ap-logo-mark');
             if (nameEl) nameEl.textContent = text || '站点名称';
-            if (markEl) markEl.textContent = text !== '' ? (Array.from(text)[0] || '站') : '站';
+            if (markEl) markEl.textContent = text !== '' ? (Array.from(text)[0] || '苏') : '苏';
         } else if (kind === 'desc') {
             var descEl = byId('ap-desc-title');
             if (descEl) descEl.textContent = text || '记录技术与生活';
@@ -61,16 +61,7 @@
             attachBackground(text);
         } else if (kind === 'cover') {
             var coverEl = byId('ap-cover');
-            if (coverEl) {
-                if (text === '') {
-                    coverEl.removeAttribute('src');
-                    coverEl.hidden = true;
-                } else {
-                    coverEl.src = text;
-                    coverEl.hidden = false;
-                }
-                if (coverEl.parentNode) coverEl.parentNode.classList.toggle('ap-cover--empty', text === '');
-            }
+            if (coverEl) coverEl.src = text !== '' ? text : '/assets/home.jpg';
         } else if (colorVars[kind]) {
             setColor(kind, text);
         }

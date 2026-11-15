@@ -409,10 +409,25 @@ final class Frontend
         $back      = post_url($post) . '#comments';
         $ip        = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
 
-        if (trim((string) ($_POST['website'] ?? '')) !== '') {
+        // 提交被拒时留下原因，避免“点了没反应”无从排查；内容不记录，只看长度。
+        $logReject = function (string $reason, array $extra = []) use ($postId, $ip): void {
+            error_log('[comment-reject] ' . json_encode(array_merge([
+                'reason'  => $reason,
+                'post_id' => $postId,
+                'ip'      => $ip,
+                'auth'    => Auth::check() ? (int) Auth::user()['id'] : 0,
+                'ua'      => mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 120),
+            ], $extra), JSON_UNESCAPED_UNICODE));
+        };
+
+        // 蜜罐字段已改名，旧字段 website 仍拦截（历史机器人脚本会带）。
+        $honeypot = trim((string) ($_POST['comment_hp'] ?? $_POST['website'] ?? ''));
+        if ($honeypot !== '') {
+            $logReject('honeypot', ['length' => mb_strlen($honeypot, 'UTF-8')]);
             redirect($back);
         }
         if (rate_limit('comment:' . $ip, 5, 600)) {
+            $logReject('rate_limit');
             flash('error', '提交太频繁了，请稍后再试。');
             redirect($back);
         }
@@ -445,11 +460,14 @@ final class Frontend
             if (!preg_match('#^https?://#i', $url)) {
                 $url = 'https://' . $url;
             }
+            // 网址是选填项，浏览器自动填充出错时不该连累整条留言；无效就丢掉。
             if (!filter_var($url, FILTER_VALIDATE_URL)) {
-                $errors[] = '网站地址格式不正确。';
+                $logReject('url_ignored', ['length' => mb_strlen($url, 'UTF-8')]);
+                $url = '';
             }
         }
         if ($errors) {
+            $logReject('validation', ['errors' => $errors]);
             flash('error', implode(' ', $errors));
             redirect($back);
         }
@@ -461,11 +479,14 @@ final class Frontend
             }
         }
 
+        // 只拦同一条评论串里短时间内的重复提交。不同评论串下的相同短回复
+        // （例如答疑时反复回复“已添加”）属于正常交流，不能永久判重拒收。
         $dupe = DB::one(
-            'SELECT id FROM comments WHERE post_id = ? AND author = ? AND email = ? AND content = ? LIMIT 1',
-            [$postId, $author, $email, $content]
+            'SELECT id FROM comments WHERE post_id = ? AND parent_id = ? AND author = ? AND email = ? AND content = ? AND created_at >= ? LIMIT 1',
+            [$postId, $parent, $author, $email, $content, date('Y-m-d H:i:s', time() - 600)]
         );
         if ($dupe) {
+            $logReject('dupe', ['existing' => (int) $dupe['id']]);
             flash('error', '这条内容已经提交过了。');
             redirect($back);
         }
@@ -505,6 +526,13 @@ final class Frontend
             'user_id'    => Auth::check() ? (int) Auth::user()['id'] : 0,
         ]);
         remember_commenter($author, $email, $url);
+        error_log('[comment-ok] ' . json_encode([
+            'id'      => (int) $id,
+            'post_id' => $postId,
+            'parent'  => $parent,
+            'status'  => $status,
+            'ip'      => $ip,
+        ], JSON_UNESCAPED_UNICODE));
 
         $commentRow = DB::one('SELECT * FROM comments WHERE id = ?', [$id]);
         if ($commentRow && class_exists('Mailer')) {

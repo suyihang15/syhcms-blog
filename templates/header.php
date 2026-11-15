@@ -12,6 +12,23 @@ $ogImage    = (string) ($syh['og_image'] ?? '');
 $icon       = site_icon_url();
 $logo       = logo_url();
 $cssVer     = is_file(SYH_ROOT . '/public/assets/site.css') ? (string) filemtime(SYH_ROOT . '/public/assets/site.css') : '1';
+
+/* 侧边栏身份信息 */
+$profileTitle = trim((string) setting('profile_title')) ?: $siteName;
+$slogan       = trim((string) setting('profile_tagline'));
+$intro        = trim((string) setting('profile_intro')) ?: $siteDesc;
+$avatar       = normalize_media_url((string) setting('homepage_cover_image'));
+if ($avatar === '') {
+    $avatar = normalize_media_url((string) setting('background_image'));
+}
+
+/* 侧边栏底部：轻量站点统计（仅几条 COUNT，避免调用重量级 stats_data） */
+$statPosts    = (int) DB::val("SELECT COUNT(*) FROM posts WHERE type = 'post' AND status = 'publish'", [], 0);
+$statCats     = (int) DB::val("SELECT COUNT(*) FROM terms WHERE taxonomy = 'category' AND count > 0", [], 0);
+$statTags     = (int) DB::val("SELECT COUNT(*) FROM terms WHERE taxonomy = 'post_tag' AND count > 0", [], 0);
+$statComments = (int) DB::val("SELECT COUNT(*) FROM comments WHERE status = 'approved'", [], 0);
+$statViews    = (int) DB::val("SELECT COALESCE(SUM(views), 0) FROM posts WHERE type = 'post' AND status = 'publish'", [], 0);
+$statDays     = intdiv(max(0, time() - site_launch_ts()), 86400);
 ?>
 <!DOCTYPE html>
 <html lang="zh-Hans">
@@ -25,8 +42,8 @@ $cssVer     = is_file(SYH_ROOT . '/public/assets/site.css') ? (string) filemtime
     <title><?= e($docTitle) ?></title>
     <meta name="robots" content="max-image-preview:large">
     <meta name="description" content="<?= e($desc) ?>">
-    <meta name="theme-color" content="#0071e3" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#191714" media="(prefers-color-scheme: dark)">
     <link rel="canonical" href="<?= e($canonical) ?>">
     <meta property="og:locale" content="zh_CN">
     <meta property="og:type" content="<?= e($ogType) ?>">
@@ -46,6 +63,8 @@ $cssVer     = is_file(SYH_ROOT . '/public/assets/site.css') ? (string) filemtime
     <link rel="apple-touch-icon" href="<?= e($icon) ?>">
     <?php endif; ?>
     <link rel="stylesheet" href="/assets/site.css?v=<?= e($cssVer) ?>">
+    <?php $reVer = is_file(SYH_ROOT . '/public/assets/site-redesign.css') ? (string) filemtime(SYH_ROOT . '/public/assets/site-redesign.css') : '1'; ?>
+    <link rel="stylesheet" href="/assets/site-redesign.css?v=<?= e($reVer) ?>">
     <?php $inlineCss = theme_inline_css(); if ($inlineCss !== ''): ?>
     <style id="syh-theme-inline-css"><?= $inlineCss ?></style>
     <?php endif; ?>
@@ -54,15 +73,82 @@ $cssVer     = is_file(SYH_ROOT . '/public/assets/site.css') ? (string) filemtime
 <a class="skip-link screen-reader-text" href="#content">跳到主要内容</a>
 <div class="reading-progress-bar"></div>
 <div class="site-wrapper">
-    <header class="site-header">
-        <div class="header-inner">
-            <div class="site-branding">
-                <?php if ($logo !== ''): ?>
-                <a href="/" class="custom-logo-link" rel="home"><img src="<?= e($logo) ?>" class="custom-logo" alt="<?= e($siteName) ?>"></a>
+
+    <aside class="site-sidebar" id="site-sidebar" aria-label="站点侧边栏">
+        <div class="sidebar-inner">
+
+            <div class="sidebar-identity">
+                <a href="/" class="sidebar-avatar" rel="home"<?= $avatar === '' ? ' data-initial="' . e(mb_substr($siteName, 0, 1)) . '"' : '' ?>>
+                    <?php if ($avatar !== ''): ?>
+                    <img src="<?= e($avatar) ?>" alt="<?= e($profileTitle) ?>" loading="eager" decoding="async">
+                    <?php else: ?>
+                    <span class="sidebar-avatar-initial"><?= e(mb_substr($siteName, 0, 1)) ?></span>
+                    <?php endif; ?>
+                </a>
+
+                <div class="sidebar-brand">
+                    <p class="site-title"><a href="/" rel="home"><?= e($profileTitle) ?></a></p>
+                    <?php if ($slogan !== ''): ?>
+                    <p class="sidebar-slogan"><?= e($slogan) ?></p>
+                    <?php endif; ?>
+                </div>
+
+                <?php if ($intro !== '' && $intro !== $siteName): ?>
+                <p class="sidebar-bio"><?= e($intro) ?></p>
                 <?php endif; ?>
-                <p class="site-title"><a href="/"><?= e($siteName) ?></a></p>
             </div>
-            <div class="header-actions">
+
+            <nav class="site-nav" id="site-nav" aria-label="主要导航">
+                <button class="mobile-menu-close" aria-label="关闭菜单">×</button>
+                <div class="mobile-nav-search"><?= search_form() ?></div>
+                <?php $menu = menu_items('primary'); ?>
+                <?php if ($menu): ?>
+                    <?= render_menu($menu) ?>
+                <?php else: ?>
+                    <ul class="menu-items">
+                        <li class="menu-item"><a href="/about/">关于</a></li>
+                        <li class="menu-item"><a href="/archive/">归档</a></li>
+                        <li class="menu-item"><a href="/stats/">统计</a></li>
+                        <li class="menu-item"><a href="/guestbook/">留言板</a></li>
+                    </ul>
+                <?php endif; ?>
+                <div class="mobile-nav-tools"><?= social_links_markup('mobile') ?></div>
+            </nav>
+
+            <div class="sidebar-stats" aria-label="站点统计">
+                <dl class="sidebar-stats-list">
+                    <div class="sidebar-stat"><dt>文章</dt><dd><?= number_format($statPosts) ?></dd></div>
+                    <div class="sidebar-stat"><dt>分类</dt><dd><?= number_format($statCats) ?></dd></div>
+                    <div class="sidebar-stat"><dt>标签</dt><dd><?= number_format($statTags) ?></dd></div>
+                    <div class="sidebar-stat"><dt>评论</dt><dd><?= number_format($statComments) ?></dd></div>
+                    <div class="sidebar-stat"><dt>浏览</dt><dd><?= number_format($statViews) ?></dd></div>
+                    <div class="sidebar-stat"><dt>运行</dt><dd><?= number_format($statDays) ?>&thinsp;天</dd></div>
+                </dl>
+            </div>
+
+            <div class="sidebar-tools">
+                <?= search_form() ?>
+                <div class="sidebar-tools-row">
+                    <?= social_links_markup('desktop') ?>
+                    <?= theme_toggle_button() ?>
+                </div>
+            </div>
+
+        </div>
+    </aside>
+
+    <div class="site-content">
+
+        <div class="site-mobile-bar">
+            <a href="/" class="mobile-bar-avatar" rel="home">
+                <?php if ($avatar !== ''): ?>
+                <img src="<?= e($avatar) ?>" alt="<?= e($profileTitle) ?>" decoding="async">
+                <?php else: ?>
+                <span><?= e(mb_substr($siteName, 0, 1)) ?></span>
+                <?php endif; ?>
+            </a>
+            <p class="site-title"><a href="/" rel="home"><?= e($profileTitle) ?></a></p>
+            <div class="mobile-bar-actions">
                 <?= theme_toggle_button('theme-toggle--mobile') ?>
                 <button class="mobile-menu-toggle" aria-label="菜单" aria-controls="site-nav" aria-expanded="false">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -71,30 +157,9 @@ $cssVer     = is_file(SYH_ROOT . '/public/assets/site.css') ? (string) filemtime
                         <line x1="3" y1="18" x2="21" y2="18"/>
                     </svg>
                 </button>
-                <nav class="site-nav" id="site-nav" aria-label="主要导航">
-                    <button class="mobile-menu-close" aria-label="关闭菜单">×</button>
-                    <div class="mobile-nav-search"><?= search_form() ?></div>
-                    <?php $menu = menu_items('primary'); ?>
-                    <?php if ($menu): ?>
-                        <?= render_menu($menu) ?>
-                    <?php else: ?>
-                        <ul class="menu-items">
-                            <li class="menu-item"><a href="/about/">关于</a></li>
-                            <li class="menu-item"><a href="/archive/">归档</a></li>
-                            <li class="menu-item"><a href="/stats/">统计</a></li>
-                            <li class="menu-item"><a href="/guestbook/">留言板</a></li>
-                        </ul>
-                    <?php endif; ?>
-                    <div class="mobile-nav-tools"><?= social_links_markup('mobile') ?></div>
-                </nav>
             </div>
         </div>
-        <div class="header-desktop-tools">
-            <?= search_form() ?>
-            <?= social_links_markup('desktop') ?>
-            <?= theme_toggle_button() ?>
-        </div>
-    </header>
+
     <?php $banner = trim((string) setting('homepage_banner_text', '')); if ($banner !== '' && str_contains($bodyClass, 'home')): ?>
     <div class="site-banner"><p><?= $banner ?></p></div>
     <?php endif; ?>

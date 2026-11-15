@@ -42,7 +42,16 @@ session_set_cookie_params([
 ]);
 ini_set('session.use_strict_mode', '1');
 ini_set('session.use_only_cookies', '1');
-session_start();
+// 爬虫/扫描器不创建会话：站内绝大部分请求是 bot，
+// 之前每个请求都写一个 session 文件，data/sessions 堆积了上万个碎片文件。
+if (stats_is_bot()) {
+    $_SESSION = [];
+} else {
+    ini_set('session.gc_probability', '1');
+    ini_set('session.gc_divisor', '500');
+    ini_set('session.gc_maxlifetime', '1800');
+    session_start();
+}
 
 foreach (['data', 'data/backup', 'data/cache'] as $dir) {
     if (!is_dir(SYH_ROOT . '/' . $dir)) {

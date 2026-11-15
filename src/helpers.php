@@ -47,13 +47,7 @@ function setting(string $name, mixed $default = ''): mixed
 
 function site_url(): string
 {
-    $configured = rtrim(trim((string) setting('site_url', '')), '/');
-    if ($configured !== '') {
-        return $configured;
-    }
-    $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
-    $host  = (string) ($_SERVER['HTTP_HOST'] ?? '');
-    return $host !== '' ? (($https ? 'https' : 'http') . '://' . $host) : 'http://localhost';
+    return rtrim((string) setting('site_url', 'https://suyihang15.com'), '/');
 }
 
 function abs_url(string $path = '/'): string
@@ -747,12 +741,12 @@ function redirect(string $path, int $status = 302): never
 
 function site_name(): string
 {
-    return (string) setting('site_name', '我的站点');
+    return (string) setting('site_name', '苏的小站');
 }
 
 function site_description(): string
 {
-    return (string) setting('site_description', '记录技术、折腾与生活的个人站点。');
+    return (string) setting('site_description', '苏的小站，记录技术、折腾与生活。');
 }
 
 function site_launch(): DateTimeImmutable
@@ -780,6 +774,162 @@ function site_launch(): DateTimeImmutable
 function site_launch_ts(): int
 {
     return site_launch()->getTimestamp();
+}
+
+function live2d_model_dir(): string
+{
+    return SYH_ROOT . '/public/assets/live2d/model';
+}
+
+function live2d_models(): array
+{
+    static $models = null;
+    if (is_array($models)) {
+        return $models;
+    }
+    $models = [];
+    $dir    = live2d_model_dir();
+    if (!is_dir($dir)) {
+        return $models;
+    }
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::LEAVES_ONLY
+    );
+    foreach ($iterator as $file) {
+        if (!$file->isFile() || !str_ends_with($file->getFilename(), '.model3.json')) {
+            continue;
+        }
+        $rel = str_replace('\\', '/', substr($file->getPathname(), strlen($dir) + 1));
+        if (preg_match('#(^|/)\.#', $rel)) {
+            continue;
+        }
+        $folder = dirname($rel);
+        $label  = $folder === '.' ? substr(basename($rel), 0, -strlen('.model3.json')) : basename($folder);
+        $models[$rel] = $label;
+    }
+    uasort($models, static fn (string $a, string $b): int => strnatcasecmp($a, $b));
+    return $models;
+}
+
+function live2d_size_options(): array
+{
+    // 尺寸锁死为「中」：大档（232px）会压住正文和侧栏，小档也不再提供切换；
+    // 历史数据里残留的 small/large 都会被 mascot_config() 与后台校验统一收敛到 medium。
+    return [
+        'medium' => '中',
+    ];
+}
+
+function live2d_active_model(): string
+{
+    $models = live2d_models();
+    if (!$models) {
+        return '';
+    }
+    $selected = (string) setting('live2d_model', '');
+    if ($selected !== '' && isset($models[$selected])) {
+        return $selected;
+    }
+    uksort($models, static function (string $a, string $b): int {
+        $depth = substr_count($a, '/') <=> substr_count($b, '/');
+        return $depth !== 0 ? $depth : strnatcasecmp($a, $b);
+    });
+    return (string) array_key_first($models);
+}
+
+function live2d_model_path(): string
+{
+    $rel = live2d_active_model();
+    return $rel === '' ? '' : '/assets/live2d/model/' . implode('/', array_map('rawurlencode', explode('/', $rel)));
+}
+
+function live2d_model_preview(): string
+{
+    $rel = live2d_active_model();
+    if ($rel === '') {
+        return '';
+    }
+    $dir = dirname(live2d_model_dir() . '/' . $rel);
+    foreach (['preview.png', 'preview.jpg', 'preview.webp'] as $name) {
+        if (is_file($dir . '/' . $name)) {
+            return '/assets/live2d/model/' . implode('/', array_map('rawurlencode', explode('/', dirname($rel) === '.' ? $name : dirname($rel) . '/' . $name)));
+        }
+    }
+    return '';
+}
+
+function live2d_model_url(): string
+{
+    if (!setting_bool('live2d_enabled', true)) {
+        return '';
+    }
+    return live2d_model_path();
+}
+
+function live2d_default_greeting(): string
+{
+    return '欢迎来到我主人的博客网站～';
+}
+
+function live2d_default_lines(): array
+{
+    return [
+        '写博客辛苦啦，喝口水吧～',
+        '这个页面是我在守着哦。',
+        '慢慢看，不着急。',
+        '有问题可以留言给我主人。',
+        '今天也要好好生活呀。',
+    ];
+}
+
+function live2d_greeting(): string
+{
+    $text = trim((string) setting('live2d_greeting', ''));
+    return $text !== '' ? $text : live2d_default_greeting();
+}
+
+function live2d_lines(): array
+{
+    $raw   = (string) setting('live2d_lines', '');
+    $lines = [];
+    foreach (preg_split('/\r\n|\r|\n/', $raw) ?: [] as $line) {
+        $line = trim($line);
+        if ($line !== '') {
+            $lines[] = $line;
+        }
+    }
+    return $lines ?: live2d_default_lines();
+}
+
+function live2d_active_label(): string
+{
+    $rel    = live2d_active_model();
+    $models = live2d_models();
+    if ($rel === '') {
+        return '';
+    }
+    return $models[$rel] ?? basename(dirname($rel));
+}
+
+function mascot_config(): ?array
+{
+    $model = live2d_model_url();
+    if ($model === '') {
+        return null;
+    }
+    // 尺寸固定为中（后台已不提供切换）；不再读取 live2d_size，避免历史配置影响前台。
+    $size = 'medium';
+    return [
+        'model'    => $model,
+        'name'     => live2d_active_label(),
+        'size'     => $size,
+        'mobile'   => setting_bool('live2d_mobile', true),
+        'bubble'   => setting_bool('live2d_bubble', true),
+        'preview'  => live2d_model_preview(),
+        'greeting' => live2d_greeting(),
+        'lines'    => live2d_lines(),
+    ];
 }
 
 function ini_bytes(string $value): int
@@ -966,7 +1116,7 @@ function normalize_media_url(string $url): string
         return $url;
     }
     $siteHost = strtolower((string) parse_url(site_url(), PHP_URL_HOST));
-    $localHosts = array_filter([$siteHost]);
+    $localHosts = array_filter(['suyihang15.com', 'www.suyihang15.com', $siteHost]);
     if (!in_array($host, $localHosts, true)) {
         return $url;
     }

@@ -1189,7 +1189,6 @@ body.syh-editor-open { overflow: hidden; }
     background: #e8e8ed;
 }
 .ap-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.ap-cover--empty { background: linear-gradient(135deg, #6a8cff, #9b6bff 55%, #ff8fb1); }
 .ap-cover-body {
     position: absolute;
     inset: 0;
@@ -1263,3 +1262,46 @@ body.syh-editor-open { overflow: hidden; }
 .mail-test-status.is-ok { color: var(--a-success); }
 .mail-test-status.is-error { color: var(--a-danger); }
 
+/* 设置页：看板娘当前模型信息 */
+.mascot-admin {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px;
+    border: 1px solid var(--a-border);
+    border-radius: var(--a-radius-sm);
+    background: var(--a-tint);
+}
+.mascot-admin-preview {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: 88px;
+    height: 118px;
+    padding: 6px;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--a-border);
+    overflow: hidden;
+}
+.mascot-admin-preview img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+.mascot-admin-meta { flex: 1 1 260px; min-width: 0; }
+.mascot-admin-name { margin: 0 0 6px; font-size: 13.5px; color: var(--a-muted); }
+.mascot-admin-name strong { color: var(--a-text); font-weight: 600; }
+.mascot-admin-meta p { margin: 0 0 4px; }
+.mascot-admin-meta p:last-child { margin-bottom: 0; }
+.mascot-admin-meta code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, .045);
+    font-size: 11.5px;
+    word-break: break-all;
+}
+.mascot-admin-empty { color: var(--a-faint); font-size: 12px; }

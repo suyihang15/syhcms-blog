@@ -179,13 +179,20 @@ syhcms/
 ├── deploy/
 │   ├── install.sh          命令行一键安装脚本（自动检查环境、建目录、装数据）
 │   └── nginx.conf.example  Nginx 站点配置示例
+├── bin/
+│   └── import.php          WordPress 数据导入脚本（可选工具）
 ├── data/                   SQLite 数据库、会话、缓存、备份（不对外，需可写）
 ├── public/                 Web 根目录（站点 DocumentRoot 指向这里）
 │   ├── index.php           入口文件：加载引导并运行应用
 │   ├── install.php         安装向导（浏览器 / 命令行共用，装完删掉）
 │   ├── router.php          PHP 内置服务器路由（php -S 本地调试用）
 │   ├── .htaccess           Apache 伪静态规则
-│   ├── assets/             主题 CSS / JS 和默认封面
+│   ├── assets/             主题 CSS / JS、默认封面、看板娘（Live2D）
+│   │   ├── site.css        基础主题样式
+│   │   ├── site-redesign.css  重设计 v3 覆盖样式（载入于 site.css 之后）
+│   │   ├── site.js         前端交互脚本
+│   │   ├── mascot.js       看板娘逻辑
+│   │   └── live2d.js / live2d/  Live2D 渲染器与模型
 │   └── wp-content/uploads/ 后台上传的媒体文件（需可写）
 ├── src/                    后端核心代码
 └── templates/              前端模板
@@ -244,6 +251,28 @@ syhcms/
 | `appearance.php` | 外观设置 |
 | `code.php` | 源码编辑器 |
 | `not-found.php` | 后台 404 |
+
+## 主题说明（v3 · 长卷与扉页）
+
+前台在 `site.css` 之上又加载了一层 `public/assets/site-redesign.css`，把早期「毛玻璃卡片」主题改成了编辑型的「左固定侧栏 + 纵向文章列表」：
+
+- 左侧固定侧栏：身份（头像 / 标题 / 简介）、多级导航、站点统计、搜索与主题切换；
+- 右侧内容列：按更新时间排列的纵向文章列表，靠留白与细分割线组织版面，去卡片、去阴影；
+- 配色：暖纸 / 墨色 / 朱砂（`--primary` 朱砂红、衬线标题）；
+- 右下角看板娘（Live2D），移动端自动收进侧栏菜单。
+
+改动集中在 `templates/header.php`、`templates/home.php`、`templates/partials/post-card.php`、`templates/footer.php` 和 `public/assets/site-redesign.css`。
+
+### gzip_static 说明
+
+若 Nginx 开启了 `gzip_static on`，修改 `public/assets/` 下的 CSS / JS 后需要重新生成同名的 `.gz` 压缩副本：
+
+```bash
+gzip -k -9 -f public/assets/site.css public/assets/site-redesign.css public/assets/site.js public/assets/mascot.js public/assets/live2d.js
+nginx -s reload
+```
+
+`.gz` 属于构建产物，已加入 `.gitignore`，仓库里不含。
 
 ## 备份与恢复
 

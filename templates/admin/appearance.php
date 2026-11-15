@@ -12,6 +12,9 @@ $logoUrl   = logo_url();
 $iconUrl   = site_icon_url();
 $bgImage   = normalize_media_url((string) setting('background_image', ''));
 $cover     = normalize_media_url((string) setting('homepage_cover_image', ''));
+if ($cover === '') {
+    $cover = '/assets/home.jpg';
+}
 $banner    = (string) setting('homepage_banner_text', '');
 $siteNameV = site_name();
 $siteDescV = site_description();
@@ -135,20 +138,20 @@ $jsVer = is_file(SYH_ROOT . '/public/assets/admin-appearance.js') ? (string) fil
             <span class="hint">仅示意配色与图片</span>
         </div>
         <div class="ap-browser">
-            <div class="ap-browser-bar"><i></i><i></i><i></i><span>example.com</span></div>
+            <div class="ap-browser-bar"><i></i><i></i><i></i><span>suyihang15.com</span></div>
             <div class="ap-frame" id="ap-frame">
                 <div class="ap-site">
                     <div class="ap-top">
                         <span class="ap-brand">
                             <img id="ap-logo" src="<?= e($logoUrl) ?>" alt=""<?= $logoUrl === '' ? ' hidden' : '' ?>>
-                            <b id="ap-logo-mark"<?= $logoUrl !== '' ? ' hidden' : '' ?>><?= e(mb_substr($siteNameV !== '' ? $siteNameV : '我的站点', 0, 1, 'UTF-8')) ?></b>
+                            <b id="ap-logo-mark"<?= $logoUrl !== '' ? ' hidden' : '' ?>><?= e(mb_substr($siteNameV !== '' ? $siteNameV : '苏', 0, 1, 'UTF-8')) ?></b>
                             <strong id="ap-name"><?= e($siteNameV) ?></strong>
                         </span>
                         <span class="ap-nav"><i>首页</i><i>归档</i><i>关于</i></span>
                     </div>
                     <div class="ap-banner" id="ap-banner"<?= $banner === '' ? ' hidden' : '' ?>><?= e($banner) ?></div>
-                    <div class="ap-cover<?= $cover === '' ? ' ap-cover--empty' : '' ?>">
-                        <img id="ap-cover" src="<?= e($cover) ?>" alt=""<?= $cover === '' ? ' hidden' : '' ?>>
+                    <div class="ap-cover">
+                        <img id="ap-cover" src="<?= e($cover) ?>" alt="">
                         <div class="ap-cover-body">
                             <h3 id="ap-desc-title"><?= e($siteDescV !== '' ? $siteDescV : '记录技术与生活') ?></h3>
                             <span class="ap-btn" id="ap-btn">阅读全文</span>

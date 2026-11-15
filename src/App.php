@@ -15,11 +15,11 @@ final class App
         $trimmed = trim(rawurldecode($raw), '/');
         $path    = $trimmed === '' ? '/' : '/' . $trimmed . '/';
 
-        if ($path === '/api/hit/') {
+        if ($path === '/wp-json/suyihang15/v1/hit/' || $path === '/api/hit/') {
             $this->hit($method);
             return;
         }
-        if ($path === '/api/stats/') {
+        if ($path === '/wp-json/suyihang15/v1/stats/' || $path === '/api/stats/') {
             if ($method !== 'GET') {
                 http_response_code(405);
                 exit;

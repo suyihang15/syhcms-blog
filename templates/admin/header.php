@@ -68,7 +68,7 @@ if (!Auth::can('admin')) {
 <div class="admin-shell">
     <aside class="admin-sidebar" id="admin-sidebar">
         <a class="admin-brand" href="<?= e(admin_url()) ?>">
-            <span class="admin-brand-mark"><?= e(mb_substr(site_name() !== '' ? site_name() : '站', 0, 1)) ?></span>
+            <span class="admin-brand-mark">苏</span>
             <span><?= e(site_name()) ?></span>
         </a>
         <nav class="admin-nav">

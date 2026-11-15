@@ -130,10 +130,32 @@ final class CodeEditor
         if (!self::atomicWrite($path, $content)) {
             return ['ok' => false, 'message' => '写入失败，请检查目录权限。'];
         }
+        self::refreshGzip($path, $content);
         if (function_exists('opcache_invalidate')) {
             @opcache_invalidate($path, true);
         }
         return ['ok' => true, 'message' => '已保存（旧版本已备份）。原文件：' . self::relative($path)];
+    }
+
+    /**
+     * nginx 开了 gzip_static，/assets 下的 css、js 会优先返回同目录的 .gz。
+     * 只改源文件不同步 .gz，访客拿到的仍是旧内容；已有 .gz 时随保存一起重写。
+     */
+    private static function refreshGzip(string $path, string $content): void
+    {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        if (!in_array($ext, ['css', 'js'], true)) {
+            return;
+        }
+        $gz = $path . '.gz';
+        if (!is_file($gz)) {
+            return;
+        }
+        $packed = @gzencode($content, 9);
+        if ($packed === false) {
+            return;
+        }
+        self::atomicWrite($gz, $packed);
     }
 
     /** @return array{ok: bool, message: string} */

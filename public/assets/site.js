@@ -1,5 +1,5 @@
 /**
- * 站点前端脚本
+ * 苏的小站主题脚本
  * Version: 3.0
  */
 
@@ -244,6 +244,14 @@
             // ESC键关闭
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && this.menu.classList.contains('mobile-open')) {
+                    this.closeMenu();
+                }
+            });
+
+            // 窗口拉宽回桌面布局时菜单已被 CSS 隐藏，
+            // 必须一起关掉，否则 body 的 overflow:hidden 会残留、整页无法滚动
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 1240 && this.menu.classList.contains('mobile-open')) {
                     this.closeMenu();
                 }
             });

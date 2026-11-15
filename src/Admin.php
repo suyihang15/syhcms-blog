@@ -991,11 +991,20 @@ final class Admin
             flash($ok ? 'success' : 'error', $message);
             redirect(admin_url('settings/#mail'));
         }
+        if ($action === 'live2d-upload' && $method === 'POST') {
+            $this->live2dUpload();
+            return;
+        }
+        if ($action === 'live2d-delete' && $method === 'POST') {
+            $this->live2dDelete();
+            return;
+        }
+
         $fields = [
-            'site_name', 'site_description', 'site_url', 'posts_per_page', 'timezone', 'site_launch',
+            'site_name', 'site_description', 'site_url', 'posts_per_page', 'timezone', 'site_launch', 'live2d_model', 'live2d_size',
+            'live2d_greeting', 'live2d_lines',
             'homepage_banner_text', 'homepage_cover_image',
             'profile_title', 'profile_tagline', 'profile_intro', 'profile_location', 'profile_experience', 'profile_stack',
-            'author_name', 'author_url',
             'custom_logo', 'site_icon', 'background_image', 'background_color', 'primary_color', 'text_color',
             'social_qq_qr', 'social_wechat_qr', 'social_bilibili', 'social_github',
             'donation_description', 'donation_wechat', 'donation_alipay', 'donation_wechat_qr', 'donation_alipay_qr',
@@ -1003,7 +1012,7 @@ final class Admin
             'icp_record_number', 'icp_record_url', 'psb_record_number', 'psb_record_url',
             'smtp_host', 'smtp_port', 'smtp_secure', 'smtp_user', 'smtp_from', 'smtp_from_name', 'notify_email',
         ];
-        $bools = ['comment_moderation', 'comment_whitelist', 'require_name_email', 'mail_enabled', 'commenter_notify'];
+        $bools = ['comment_moderation', 'comment_whitelist', 'require_name_email', 'mail_enabled', 'commenter_notify', 'live2d_enabled', 'live2d_mobile', 'live2d_bubble'];
         if ($method === 'POST') {
             Auth::verifyCsrf();
             foreach ($fields as $key) {
@@ -1028,6 +1037,33 @@ final class Admin
                 if ($key === 'posts_per_page') {
                     $value = (string) max(1, min(50, (int) $value));
                 }
+                if ($key === 'live2d_model' && $value !== '' && !isset(live2d_models()[$value])) {
+                    flash('error', '选择的看板娘模型不存在，请重新选择。');
+                    redirect(admin_url('settings/#live2d'));
+                }
+                if ($key === 'live2d_size' && !isset(live2d_size_options()[$value])) {
+                    $value = 'medium';
+                }
+                if ($key === 'live2d_greeting') {
+                    $value = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
+                    if (mb_strlen($value) > 40) {
+                        $value = mb_substr($value, 0, 40);
+                    }
+                }
+                if ($key === 'live2d_lines') {
+                    $lines = [];
+                    foreach (preg_split('/\r\n|\r|\n/', $value) ?: [] as $line) {
+                        $line = trim(preg_replace('/\s+/u', ' ', $line) ?? '');
+                        if ($line === '') {
+                            continue;
+                        }
+                        $lines[] = mb_substr($line, 0, 40);
+                        if (count($lines) >= 8) {
+                            break;
+                        }
+                    }
+                    $value = implode("\n", $lines);
+                }
                 if ($key === 'smtp_port') {
                     $value = (string) max(1, min(65535, (int) $value));
                 }
@@ -1049,6 +1085,11 @@ final class Admin
             } elseif ((string) ($_POST['smtp_pass'] ?? '') !== '') {
                 set_option('smtp_pass', (string) $_POST['smtp_pass']);
             }
+            // 清理旧版自绘形象配置，避免残留“默认形象”开关
+            if (array_key_exists('mascot_style', options_all())) {
+                DB::exec("DELETE FROM options WHERE name = 'mascot_style'");
+                unset($GLOBALS['__syh_options']['mascot_style']);
+            }
             flash('success', '设置已保存。');
             redirect(admin_url('settings/'));
         }
@@ -1058,6 +1099,197 @@ final class Admin
             'fields'         => $fields,
             'bools'          => $bools,
         ]);
+    }
+
+    private function live2dUpload(): void
+    {
+        Auth::verifyCsrf();
+        $back = admin_url('settings/#live2d-manage');
+        if (!class_exists('ZipArchive')) {
+            flash('error', '服务器未启用 PHP zip 扩展，无法解压模型压缩包。');
+            redirect($back);
+        }
+        $file = $_FILES['model'] ?? null;
+        $postMax = ini_bytes((string) ini_get('post_max_size'));
+        if ($postMax > 0 && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > $postMax) {
+            flash('error', '上传内容超过服务器 post_max_size（' . human_bytes($postMax) . '），已被 PHP 丢弃；请调大 PHP 限制或压缩模型后重试。');
+            redirect($back);
+        }
+        $limit = php_upload_limit();
+        if (!is_array($file) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            flash('error', '上传失败，请重新选择 zip 文件（单个文件上限 ' . human_bytes($limit) . '）。');
+            redirect($back);
+        }
+        if ((int) $file['size'] > $limit) {
+            flash('error', '模型压缩包不能超过 ' . human_bytes($limit) . '，这是当前 PHP 的 upload_max_filesize / post_max_size 上限，可在面板「PHP 设置」中调整。');
+            redirect($back);
+        }
+        $tmp = (string) $file['tmp_name'];
+        if (!is_uploaded_file($tmp)) {
+            flash('error', '无效的上传。');
+            redirect($back);
+        }
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime  = (string) $finfo->file($tmp);
+        if (!in_array($mime, ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'], true)) {
+            flash('error', '请上传 zip 格式的模型压缩包（当前识别为 ' . $mime . '）。');
+            redirect($back);
+        }
+        $zip = new ZipArchive();
+        if ($zip->open($tmp) !== true || $zip->numFiles <= 0) {
+            flash('error', '无法读取压缩包，请确认文件未损坏。');
+            redirect($back);
+        }
+        $allowed = ['json', 'moc', 'moc3', 'png', 'jpg', 'jpeg', 'webp', 'wav', 'mp3', 'ogg'];
+        $skip    = ['.DS_Store', 'Thumbs.db'];
+        $entries = [];
+        $total   = 0;
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $stat = $zip->statIndex($i);
+            if (!is_array($stat)) {
+                continue;
+            }
+            $name = str_replace('\\', '/', (string) $stat['name']);
+            if ($name === '' || str_ends_with($name, '/') || str_starts_with($name, '__MACOSX/') || in_array(basename($name), $skip, true)) {
+                continue;
+            }
+            if (!mb_check_encoding($name, 'UTF-8')) {
+                $name = (string) mb_convert_encoding($name, 'UTF-8', 'GBK');
+            }
+            if (str_contains($name, "\0") || str_starts_with($name, '/') || preg_match('#(^|/)\.\.?(/|$)#', $name) || substr_count($name, '/') > 6) {
+                $zip->close();
+                flash('error', '压缩包内含非法路径：' . $name);
+                redirect($back);
+            }
+            $ext = strtolower((string) pathinfo($name, PATHINFO_EXTENSION));
+            if (!in_array($ext, $allowed, true)) {
+                $zip->close();
+                flash('error', '压缩包内含不支持的文件：' . $name . '（仅允许 ' . implode(' / ', $allowed) . '）');
+                redirect($back);
+            }
+            $total += (int) $stat['size'];
+            if ($total > 120 * 1024 * 1024) {
+                $zip->close();
+                flash('error', '解压后体积超过 120MB，已中止。');
+                redirect($back);
+            }
+            $entries[] = ['index' => $i, 'name' => $name];
+        }
+        if (!$entries) {
+            $zip->close();
+            flash('error', '压缩包里没有可导入的文件。');
+            redirect($back);
+        }
+        $suggest = trim((string) ($_POST['dir'] ?? ''));
+        if ($suggest === '') {
+            $suggest = (string) pathinfo((string) ($file['name'] ?? 'model'), PATHINFO_FILENAME);
+        }
+        $suggest = trim((string) preg_replace('/[^A-Za-z0-9._-]+/', '-', $suggest), '-_.');
+        $suggest = $suggest !== '' ? mb_substr($suggest, 0, 48) : 'model';
+        $root    = live2d_model_dir();
+        if (!is_dir($root) && !mkdir($root, 0775, true) && !is_dir($root)) {
+            $zip->close();
+            flash('error', '无法创建模型目录，请检查 ' . $root . ' 的写权限。');
+            redirect($back);
+        }
+        $target = $root . '/' . $suggest;
+        $n      = 2;
+        while (file_exists($target)) {
+            $target = $root . '/' . $suggest . '-' . $n++;
+        }
+        if (!mkdir($target, 0775, true)) {
+            $zip->close();
+            flash('error', '无法创建模型目录。');
+            redirect($back);
+        }
+        $failed = '';
+        foreach ($entries as $entry) {
+            $dest = $target . '/' . $entry['name'];
+            $dir  = dirname($dest);
+            if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
+                $failed = '无法创建子目录：' . $entry['name'];
+                break;
+            }
+            $content = $zip->getFromIndex($entry['index']);
+            if ($content === false || file_put_contents($dest, $content) === false) {
+                $failed = '写入文件失败：' . $entry['name'];
+                break;
+            }
+        }
+        $zip->close();
+        if ($failed !== '') {
+            $this->removeDir($target);
+            flash('error', $failed);
+            redirect($back);
+        }
+        $found = [];
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($target, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::LEAVES_ONLY
+        );
+        foreach ($iterator as $item) {
+            if ($item->isFile() && str_ends_with($item->getFilename(), '.model3.json')) {
+                $found[] = str_replace('\\', '/', substr($item->getPathname(), strlen($target) + 1));
+            }
+        }
+        if (!$found) {
+            $this->removeDir($target);
+            flash('error', '压缩包内没有找到 .model3.json，请确认上传的是 Cubism 3/4 模型。');
+            redirect($back);
+        }
+        usort($found, static fn (string $a, string $b): int => (substr_count($a, '/') <=> substr_count($b, '/')) ?: (strlen($a) <=> strlen($b)));
+        $rel = basename($target) . '/' . $found[0];
+        set_option('live2d_model', $rel);
+        set_option('live2d_enabled', '1');
+        flash('success', '模型已导入并启用：' . basename($target) . '（' . $found[0] . '）');
+        redirect(admin_url('settings/#live2d'));
+    }
+
+    private function live2dDelete(): void
+    {
+        Auth::verifyCsrf();
+        $back = admin_url('settings/#live2d-manage');
+        $rel  = trim((string) ($_POST['model'] ?? ''));
+        $root = realpath(live2d_model_dir());
+        $abs  = $rel !== '' ? realpath(live2d_model_dir() . '/' . $rel) : false;
+        if ($root === false || $abs === false || !is_dir($abs) || is_link($abs) || dirname($abs) !== $root) {
+            flash('error', '只允许删除上传的模型目录。');
+            redirect($back);
+        }
+        $active = (string) setting('live2d_model', '');
+        if ($active === '' || !isset(live2d_models()[$active])) {
+            $active = live2d_active_model();
+        }
+        if ($active !== '' && ($active === $rel || str_starts_with($active, $rel . '/'))) {
+            flash('error', '“' . $rel . '”正在使用中，不能删除；请先上传并切换到其他模型。');
+            redirect($back);
+        }
+        $this->removeDir($abs);
+        $selected = (string) setting('live2d_model', '');
+        if ($selected === '' || str_starts_with($selected, $rel . '/') || $selected === $rel) {
+            set_option('live2d_model', '');
+        }
+        flash('success', '已删除模型目录：' . $rel);
+        redirect($back);
+    }
+
+    private function removeDir(string $dir): void
+    {
+        if (is_link($dir) || !is_dir($dir)) {
+            return;
+        }
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($iterator as $item) {
+            if ($item->isDir() && !$item->isLink()) {
+                @rmdir($item->getPathname());
+            } else {
+                @unlink($item->getPathname());
+            }
+        }
+        @rmdir($dir);
     }
 
     private function appearance(string $method): void

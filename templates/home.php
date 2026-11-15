@@ -1,36 +1,13 @@
 <?php require SYH_ROOT . '/templates/header.php'; ?>
+<?php $homeTotal = (int) DB::val("SELECT COUNT(*) FROM posts WHERE type = 'post' AND status = 'publish'", [], 0); ?>
 <main class="site-main" id="content">
     <div class="content-area-full">
         <div class="content-area">
             <?php if ($paged === 1): ?>
-            <?php
-            $cover = normalize_media_url((string) setting('homepage_cover_image'));
-            $profileTitle = trim((string) setting('profile_title')) ?: site_name();
-            ?>
-            <section class="homepage-profile">
-                <div class="profile-cover">
-                    <?php if ($cover !== ''): ?>
-                    <img src="<?= e($cover) ?>" alt="<?= e($profileTitle) ?>" loading="eager" fetchpriority="high" decoding="async">
-                    <?php else: ?>
-                    <span class="profile-cover-fallback" aria-hidden="true"><?= e(mb_substr($profileTitle !== '' ? $profileTitle : '我', 0, 1)) ?></span>
-                    <?php endif; ?>
-                </div>
-                <div class="profile-info">
-                    <h2 class="profile-title"><?= e($profileTitle) ?></h2>
-                    <?php if (trim((string) setting('profile_tagline')) !== ''): ?>
-                    <p class="profile-tagline"><?= e((string) setting('profile_tagline')) ?></p>
-                    <?php endif; ?>
-                    <?php $intro = trim((string) setting('profile_intro')) ?: site_description(); ?>
-                    <?php if ($intro !== ''): ?><p class="profile-intro"><?= e($intro) ?></p><?php endif; ?>
-                    <div class="profile-details">
-                        <?php foreach (['profile_location', 'profile_experience', 'profile_stack'] as $key): ?>
-                        <?php if (trim((string) setting($key)) !== ''): ?>
-                        <span class="<?= e(str_replace('profile_', 'profile-', $key)) ?>"><?= e((string) setting($key)) ?></span>
-                        <?php endif; ?>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            </section>
+            <header class="home-lede">
+                <p class="home-lede-eyebrow">日志</p>
+                <p class="home-lede-note">共 <?= number_format($homeTotal) ?> 篇，按更新时间排列。</p>
+            </header>
             <?php endif; ?>
 
             <?php if ($posts): ?>

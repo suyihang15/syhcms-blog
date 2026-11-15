@@ -83,6 +83,10 @@ $renderTree = function (array $items, int $depth = 0, string $replyTo = '') use 
         <?= Auth::csrfField() ?>
         <input type="hidden" name="post_id" value="<?= (int) $post['id'] ?>">
         <input type="hidden" name="parent_id" id="comment-parent-id" value="0">
+        <p class="comment-reply-notice" id="comment-reply-notice" hidden>
+            <span>正在回复 <strong id="comment-reply-target"></strong></span>
+            <button type="button" class="comment-reply-cancel" id="comment-reply-cancel">取消回复</button>
+        </p>
         <p class="comment-form-author">
             <label for="author">昵称<?= $guestbook || $requireEmail ? ' <span class="required">*</span>' : '' ?></label>
             <input id="author" name="author" type="text" value="<?= e($authorValue) ?>" size="30" maxlength="<?= $guestbook ? 30 : 245 ?>" autocomplete="name"<?= $guestbook || $requireEmail ? ' required' : '' ?>>
@@ -99,9 +103,9 @@ $renderTree = function (array $items, int $depth = 0, string $replyTo = '') use 
             <label for="comment"><?= $guestbook ? '留言内容' : '评论内容' ?></label>
             <textarea id="comment" name="comment" cols="45" rows="6" required maxlength="<?= $guestbook ? 2000 : 5000 ?>"></textarea>
         </p>
-        <p class="comment-form-honeypot" aria-hidden="true" style="position:absolute;left:-9999px;">
-            <label for="website">网站</label>
-            <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+        <p class="comment-form-honeypot" aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;">
+            <label for="comment_hp">请勿填写</label>
+            <input type="text" id="comment_hp" name="comment_hp" tabindex="-1" autocomplete="new-password">
         </p>
         <p class="form-submit">
             <button type="submit" class="submit"><?= $guestbook ? '提交留言' : '提交评论' ?></button>
@@ -114,23 +118,43 @@ $renderTree = function (array $items, int $depth = 0, string $replyTo = '') use 
         var parentInput = document.getElementById('comment-parent-id');
         var textarea = document.getElementById('comment');
         var title = document.getElementById('reply-title');
-        var original = title ? title.textContent : '';
+        var notice = document.getElementById('comment-reply-notice');
+        var target = document.getElementById('comment-reply-target');
+        var cancel = document.getElementById('comment-reply-cancel');
+        var defaultTitle = title ? title.textContent : '';
+
+        function setReply(id, author) {
+            if (!parentInput) return;
+            var replying = id && id !== '0';
+            parentInput.value = replying ? id : '0';
+            if (notice) notice.hidden = !replying;
+            if (target) target.textContent = replying ? (author || '') : '';
+            if (title) title.textContent = replying ? '回复 ' + (author || '') + '：' : defaultTitle;
+        }
+
         document.querySelectorAll('.comment-reply-link').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                if (!parentInput) return;
-                parentInput.value = btn.getAttribute('data-comment-id') || '0';
-                if (title) title.textContent = '回复 ' + (btn.getAttribute('data-author') || '') + '：';
-                form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                if (textarea) textarea.focus();
+                setReply(btn.getAttribute('data-comment-id'), btn.getAttribute('data-author'));
+                if (textarea) {
+                    // 先聚焦再滚动：手机软键盘弹出会改变可视区域，顺序反了会把表单顶出屏幕
+                    try { textarea.focus({ preventScroll: true }); } catch (e) { textarea.focus(); }
+                }
+                form.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         });
+
+        if (cancel) {
+            cancel.addEventListener('click', function () {
+                setReply('0', '');
+                if (textarea) {
+                    try { textarea.focus({ preventScroll: true }); } catch (e) { textarea.focus(); }
+                }
+            });
+        }
+
         if (title) {
             title.addEventListener('click', function () {
-                if (!parentInput) return;
-                if (parentInput.value !== '0') {
-                    parentInput.value = '0';
-                    title.textContent = original;
-                }
+                if (parentInput && parentInput.value !== '0') setReply('0', '');
             });
         }
     })();
